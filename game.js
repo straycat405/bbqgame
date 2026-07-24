@@ -21,8 +21,11 @@ const endScore = document.querySelector('#end-score');
 const endMessage = document.querySelector('#end-message');
 const rankingList = document.querySelector('#ranking-list');
 const restartButton = document.querySelector('#restart-button');
+const pauseButton = document.querySelector('#pause-button');
+const pauseScreen = document.querySelector('#pause-screen');
+const resumeButton = document.querySelector('#resume-button');
 
-let score = 0, combo = 0, heat = 2, remaining = 60, running = false, lastTime = 0;
+let score = 0, combo = 0, heat = 2, remaining = 60, running = false, paused = false, lastTime = 0;
 let meats = [];
 let assistEnabled = false;
 const bestKey = 'bbq-game-best-score';
@@ -41,12 +44,23 @@ function makeMeat() {
 function fillTray() { while (tray.children.length < 8) makeMeat(); }
 function resetGame() {
   endScreen.hidden = true;
+  pauseScreen.hidden = true; paused = false; pauseButton.disabled = false; pauseButton.textContent = '일시정지';
   score = 0; combo = 0; remaining = 60; running = true; lastTime = performance.now();
   meats.forEach(m => m.remove()); meats = []; fillTray();
   scoreEl.textContent = '0'; timeEl.textContent = '01:00'; comboEl.textContent = '불판 예열 완료!';
   instructionEl.textContent = '우클릭으로 고기를 불판에 올려 주세요'; startButton.textContent = '게임 중'; startButton.disabled = true;
   plateMessage.style.display = ''; plateMessage.innerHTML = '잘 익은 고기를<br />기다리고 있어요';
   servedMeats.replaceChildren();
+}
+function togglePause() {
+  if (!running && !paused) return;
+  if (running) {
+    running = false; paused = true; pauseScreen.hidden = false; pauseButton.textContent = '계속하기';
+    instructionEl.textContent = '게임이 일시정지되었습니다';
+    return;
+  }
+  paused = false; running = true; lastTime = performance.now(); pauseScreen.hidden = true; pauseButton.textContent = '일시정지';
+  instructionEl.textContent = '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
 }
 function getRankings() {
   try { return JSON.parse(localStorage.getItem(rankingKey) || '[]').filter(Number.isFinite); }
@@ -146,7 +160,8 @@ function gameLoop(now) {
     const seconds = Math.ceil(remaining); timeEl.textContent = `00:${String(seconds).padStart(2,'0')}`;
     grill.querySelectorAll('.meat').forEach(meat => {
       const underside = meat.dataset.face === 'a' ? 'cookB' : 'cookA';
-      const cook = Number(meat.dataset[underside]) + delta * heat * 6; meat.dataset[underside] = cook.toFixed(2);
+      const cookingRates = [0, 1.6, 2.7, 4.1];
+      const cook = Number(meat.dataset[underside]) + delta * cookingRates[heat]; meat.dataset[underside] = cook.toFixed(2);
       const visibleCook = Number(meat.dataset[meat.dataset.face === 'a' ? 'cookA' : 'cookB']);
       setMeatAppearance(meat, visibleCook);
     });
@@ -156,7 +171,7 @@ function gameLoop(now) {
   requestAnimationFrame(gameLoop);
 }
 function finishGame() {
-  running = false; startButton.disabled = false; startButton.textContent = '다시 굽기';
+  running = false; paused = false; pauseScreen.hidden = true; pauseButton.disabled = true; startButton.disabled = false; startButton.textContent = '다시 굽기';
   const best = Math.max(score, Number(localStorage.getItem(bestKey) || 0)); localStorage.setItem(bestKey, best); bestEl.textContent = best;
   comboEl.textContent = `오늘의 점수 ${score}점`; instructionEl.textContent = '다시 굽기를 눌러 새로운 불판을 시작하세요'; showToast('시간 종료!');
   const rankings = saveScoreToRankings(score);
@@ -174,4 +189,9 @@ window.addEventListener('contextmenu', event => {
 }, { capture: true });
 startButton.addEventListener('click', resetGame);
 restartButton.addEventListener('click', resetGame);
+pauseButton.addEventListener('click', togglePause);
+resumeButton.addEventListener('click', togglePause);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && endScreen.hidden) { event.preventDefault(); togglePause(); }
+});
 fillTray(); requestAnimationFrame(gameLoop);

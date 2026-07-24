@@ -73,6 +73,7 @@
       <footer class="game-footer">
         <div class="combo" id="combo" aria-live="polite">준비 완료!</div>
         <p id="instruction">우클릭으로 고기를 불판에 올려 주세요</p>
+        <button class="pause-button" id="pause-button" type="button" disabled>일시정지</button>
         <button class="primary-button" id="start-button" type="button">게임 시작</button>
       </footer>
       <div class="toast" id="toast" aria-live="polite"></div>
@@ -90,6 +91,15 @@
             <ol id="ranking-list" class="ranking-list"></ol>
             <small>이 브라우저에 저장된 개인 기록입니다.</small>
           </div>
+        </div>
+      </section>
+      <section class="pause-screen" id="pause-screen" aria-modal="true" aria-labelledby="pause-title" role="dialog" hidden>
+        <div class="pause-card">
+          <span>⏸</span>
+          <h2 id="pause-title">잠시 쉬어가요</h2>
+          <p>불판과 타이머가 모두 멈췄습니다.</p>
+          <button class="primary-button resume-button" id="resume-button" type="button">게임 재개하기</button>
+          <small>ESC 키로도 계속할 수 있어요.</small>
         </div>
       </section>
     </main>
