@@ -49,11 +49,12 @@ function resetGame() {
   score = 0; combo = 0; remaining = 60; running = true; lastTime = performance.now();
   meats.forEach(m => m.remove()); meats = []; fillTray();
   scoreEl.textContent = '0'; timeEl.textContent = '01:00'; comboEl.textContent = '불판 예열 완료!';
-  instructionEl.textContent = isMobileLayout() ? '고기를 불판까지 끌어다 놓으세요' : '우클릭으로 고기를 불판에 올려 주세요'; startButton.textContent = '게임 중'; startButton.disabled = true;
+  instructionEl.textContent = isMobileLayout() ? '트레이 고기를 불판으로 끌어다 놓으세요' : '우클릭으로 고기를 불판에 올려 주세요'; startButton.textContent = '게임 중'; startButton.disabled = true;
   plateMessage.style.display = ''; plateMessage.innerHTML = '잘 익은 고기를<br />기다리고 있어요';
   servedMeats.replaceChildren();
 }
 function isMobileLayout() { return window.matchMedia('(max-width: 760px)').matches; }
+function grillCapacity() { return isMobileLayout() ? 4 : 8; }
 function togglePause() {
   if (!running && !paused) return;
   if (running) {
@@ -62,7 +63,7 @@ function togglePause() {
     return;
   }
   paused = false; running = true; lastTime = performance.now(); pauseScreen.hidden = true; pauseButton.textContent = '일시정지';
-  instructionEl.textContent = isMobileLayout() ? '불판 고기를 완성 접시까지 끌어다 놓으세요' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
+  instructionEl.textContent = isMobileLayout() ? '탭: 뒤집기 · 끌기: 완성 접시' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
 }
 function getRankings() {
   try { return JSON.parse(localStorage.getItem(rankingKey) || '[]').filter(Number.isFinite); }
@@ -114,7 +115,8 @@ function moveTouchDrag(event) {
     touchDragging = true; touchMeat.classList.add('dragging');
   }
   if (!touchDragging) return;
-  touchMeat.style.position = 'fixed'; touchMeat.style.left = `${event.clientX - 37}px`; touchMeat.style.top = `${event.clientY - 24}px`;
+  const bounds = touchMeat.getBoundingClientRect();
+  touchMeat.style.position = 'fixed'; touchMeat.style.left = `${event.clientX - bounds.width / 2}px`; touchMeat.style.top = `${event.clientY - bounds.height / 2}px`;
 }
 function endTouchDrag(event) {
   const meat = touchMeat; if (!meat) return;
@@ -146,17 +148,21 @@ function restoreTouchMeat(meat) {
 function clearTouchDrag() { touchMeat = null; touchOriginal = null; touchDragging = false; }
 function placeOnGrill(meat) {
   const grillingCount = grill.querySelectorAll('.meat').length;
-  if (grillingCount >= 8) { showToast('불판이 가득 찼어요!'); return false; }
+  if (grillingCount >= grillCapacity()) { showToast(`불판은 ${grillCapacity()}개까지만 올릴 수 있어요!`); return false; }
   meat.dataset.state = 'grill'; meat.className = 'meat';
-  const column = grillingCount % 4, row = Math.floor(grillingCount / 4);
-  const meatWidth = 74, meatHeight = 48, inset = 33;
-  const innerWidth = grill.clientWidth - inset * 2 - meatWidth;
-  const innerHeight = grill.clientHeight - inset * 2 - meatHeight;
-  const left = inset + innerWidth * (column / 3);
-  const top = inset + innerHeight * row;
+  const mobile = isMobileLayout();
+  const columns = mobile ? 2 : 4;
+  const column = grillingCount % columns, row = Math.floor(grillingCount / columns);
+  const meatWidth = mobile ? 82 : 74, meatHeight = mobile ? 54 : 48;
+  const insetX = mobile ? 38 : 33, insetY = mobile ? 25 : 33;
+  const innerWidth = grill.clientWidth - insetX * 2 - meatWidth;
+  const innerHeight = grill.clientHeight - insetY * 2 - meatHeight;
+  const left = insetX + innerWidth * (columns === 1 ? 0 : column / (columns - 1));
+  const rows = Math.ceil(grillCapacity() / columns);
+  const top = insetY + innerHeight * (rows === 1 ? 0 : row / (rows - 1));
   const rotations = [-5, 3, -2, 4, 3, -4, 4, -3];
   meat.style.position = 'absolute'; meat.style.left = `${left}px`; meat.style.top = `${top}px`; meat.style.transform = `rotate(${rotations[grillingCount]}deg)`;
-  grill.append(meat); grill.classList.add('has-meat'); dropHint.style.opacity = '0'; instructionEl.textContent = isMobileLayout() ? '불판 고기를 완성 접시까지 끌어다 놓으세요' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
+  grill.append(meat); grill.classList.add('has-meat'); dropHint.style.opacity = '0'; instructionEl.textContent = isMobileLayout() ? '탭: 뒤집기 · 끌기: 완성 접시' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
   return true;
 }
 function serveMeat(meat) {
@@ -207,7 +213,8 @@ function showToast(message) { toast.textContent = message; toast.classList.add('
 function gameLoop(now) {
   if (running) {
     const delta = (now - lastTime) / 1000; lastTime = now; remaining = Math.max(0, remaining - delta);
-    const seconds = Math.ceil(remaining); timeEl.textContent = `00:${String(seconds).padStart(2,'0')}`;
+    const seconds = Math.ceil(remaining);
+    timeEl.textContent = `${String(Math.floor(seconds / 60)).padStart(2,'0')}:${String(seconds % 60).padStart(2,'0')}`;
     grill.querySelectorAll('.meat').forEach(meat => {
       const underside = meat.dataset.face === 'a' ? 'cookB' : 'cookA';
       const cookingRates = [0, 1.6, 2.7, 4.1];
