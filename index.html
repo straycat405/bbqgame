@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#20100b" />
+    <title>고기굽기</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="고기굽기 게임">
+      <div class="table-setting" aria-hidden="true">
+        <div class="side-dish kimchi"><i></i><i></i><i></i></div>
+        <div class="side-dish garlic"><i></i><i></i><i></i></div>
+        <div class="side-dish sauce"></div>
+        <div class="lettuce"><i></i><i></i><i></i></div>
+        <div class="chopsticks"></div>
+      </div>
+      <header class="hud">
+        <div class="brand">
+          <span class="brand-kicker">오늘의 불판</span>
+          <h1>고기굽기</h1>
+        </div>
+        <div class="scoreboard" aria-label="게임 현황">
+          <div class="stat"><span>점수</span><strong id="score">0</strong></div>
+          <div class="stat timer"><span>남은 시간</span><strong id="time">01:00</strong></div>
+          <div class="stat best"><span>최고 점수</span><strong id="best-score">0</strong></div>
+        </div>
+      </header>
+
+      <section class="game-area" aria-label="게임 영역">
+        <aside class="station tray-station">
+          <div class="station-title"><span>01</span><h2>고기 트레이</h2></div>
+          <p>고기를 우클릭해<br />불판으로 옮기세요.</p>
+          <div class="tray" id="tray" aria-label="생고기 트레이"></div>
+        </aside>
+
+        <section class="grill-zone" aria-label="불판">
+          <div class="heat-control">
+            <span class="fire">🔥</span>
+            <div><b>불 세기</b><small id="heat-label">보통 불</small></div>
+            <div class="heat-buttons" aria-label="불 세기 조절">
+              <button type="button" data-heat="1" aria-label="약불">−</button>
+              <button type="button" data-heat="2" class="active" aria-label="보통 불">●</button>
+              <button type="button" data-heat="3" aria-label="강불">+</button>
+            </div>
+          </div>
+          <button class="assist-toggle" id="assist-toggle" type="button" aria-pressed="false">
+            익힘도 보조 <b>끔</b>
+          </button>
+          <div class="grill-wrap">
+            <div class="grill" id="grill" aria-label="고기를 올릴 불판">
+              <div class="grill-rings"></div>
+              <span class="drop-hint" id="drop-hint">여기에 고기를 올리세요</span>
+            </div>
+            <div class="smoke smoke-one"></div><div class="smoke smoke-two"></div>
+          </div>
+          <div class="doneness-guide is-hidden" id="doneness-guide" aria-label="현재 아래 면의 익힘도">
+            <span>아래 면 익힘도</span><div class="cook-meter"><i id="cook-meter-fill"></i></div><small id="cook-meter-label">불판에 고기를 올려주세요</small>
+          </div>
+        </section>
+
+        <aside class="station plate-station">
+          <div class="station-title"><span>03</span><h2>완성 접시</h2></div>
+          <p>불판의 고기를 우클릭해<br />접시에 담아내세요.</p>
+          <div class="plate" id="plate" aria-label="완성 고기 접시"><span id="plate-message">잘 익은 고기를<br />기다리고 있어요</span><div id="served-meats" class="served-meats"></div></div>
+        </aside>
+      </section>
+
+      <footer class="game-footer">
+        <div class="combo" id="combo" aria-live="polite">준비 완료!</div>
+        <p id="instruction">우클릭으로 고기를 불판에 올려 주세요</p>
+        <button class="primary-button" id="start-button" type="button">게임 시작</button>
+      </footer>
+      <div class="toast" id="toast" aria-live="polite"></div>
+      <section class="end-screen" id="end-screen" aria-modal="true" aria-labelledby="end-title" role="dialog" hidden>
+        <div class="end-card">
+          <div class="final-score">
+            <span class="result-kicker">오늘의 고기굽기 결과</span>
+            <h2 id="end-title">시간 종료!</h2>
+            <strong id="end-score">0점</strong>
+            <p id="end-message">다음 판에는 더 완벽하게 구워보세요.</p>
+            <button class="primary-button restart-button" id="restart-button" type="button">다시 하기</button>
+          </div>
+          <div class="ranking-panel">
+            <div class="ranking-title"><span>🏆</span><h3>TOP 10</h3></div>
+            <ol id="ranking-list" class="ranking-list"></ol>
+            <small>이 브라우저에 저장된 개인 기록입니다.</small>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
