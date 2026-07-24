@@ -28,6 +28,7 @@ const resumeButton = document.querySelector('#resume-button');
 let score = 0, combo = 0, heat = 2, remaining = 60, running = false, paused = false, lastTime = 0;
 let meats = [];
 let assistEnabled = false;
+let touchMeat = null, touchStart = { x: 0, y: 0 }, touchDragging = false, touchOriginal = null;
 const bestKey = 'bbq-game-best-score';
 const rankingKey = 'bbq-game-top-scores';
 bestEl.textContent = localStorage.getItem(bestKey) || '0';
@@ -48,10 +49,11 @@ function resetGame() {
   score = 0; combo = 0; remaining = 60; running = true; lastTime = performance.now();
   meats.forEach(m => m.remove()); meats = []; fillTray();
   scoreEl.textContent = '0'; timeEl.textContent = '01:00'; comboEl.textContent = '불판 예열 완료!';
-  instructionEl.textContent = '우클릭으로 고기를 불판에 올려 주세요'; startButton.textContent = '게임 중'; startButton.disabled = true;
+  instructionEl.textContent = isMobileLayout() ? '고기를 불판까지 끌어다 놓으세요' : '우클릭으로 고기를 불판에 올려 주세요'; startButton.textContent = '게임 중'; startButton.disabled = true;
   plateMessage.style.display = ''; plateMessage.innerHTML = '잘 익은 고기를<br />기다리고 있어요';
   servedMeats.replaceChildren();
 }
+function isMobileLayout() { return window.matchMedia('(max-width: 760px)').matches; }
 function togglePause() {
   if (!running && !paused) return;
   if (running) {
@@ -60,7 +62,7 @@ function togglePause() {
     return;
   }
   paused = false; running = true; lastTime = performance.now(); pauseScreen.hidden = true; pauseButton.textContent = '일시정지';
-  instructionEl.textContent = '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
+  instructionEl.textContent = isMobileLayout() ? '불판 고기를 완성 접시까지 끌어다 놓으세요' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
 }
 function getRankings() {
   try { return JSON.parse(localStorage.getItem(rankingKey) || '[]').filter(Number.isFinite); }
@@ -85,6 +87,7 @@ function renderRankings(rankings) {
 function handleMeatPointerDown(event) {
   const meat = event.currentTarget;
   if (!running || meat.dataset.state === 'served') return;
+  if (event.pointerType === 'touch') { startTouchDrag(event); return; }
   if (event.button === 0) {
     if (meat.dataset.state === 'grill') flipMeat(meat);
     else showToast('불판 위 고기만 뒤집을 수 있어요');
@@ -95,9 +98,55 @@ function handleMeatPointerDown(event) {
   if (meat.dataset.state === 'tray') placeOnGrill(meat);
   else if (meat.dataset.state === 'grill') serveMeat(meat);
 }
+function startTouchDrag(event) {
+  event.preventDefault();
+  touchMeat = event.currentTarget;
+  touchStart = { x: event.clientX, y: event.clientY }; touchDragging = false;
+  touchOriginal = { position: touchMeat.style.position, left: touchMeat.style.left, top: touchMeat.style.top, transform: touchMeat.style.transform };
+  touchMeat.setPointerCapture(event.pointerId);
+  touchMeat.addEventListener('pointermove', moveTouchDrag);
+  touchMeat.addEventListener('pointerup', endTouchDrag, { once: true });
+  touchMeat.addEventListener('pointercancel', cancelTouchDrag, { once: true });
+}
+function moveTouchDrag(event) {
+  if (!touchMeat) return;
+  if (!touchDragging && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > 8) {
+    touchDragging = true; touchMeat.classList.add('dragging');
+  }
+  if (!touchDragging) return;
+  touchMeat.style.position = 'fixed'; touchMeat.style.left = `${event.clientX - 37}px`; touchMeat.style.top = `${event.clientY - 24}px`;
+}
+function endTouchDrag(event) {
+  const meat = touchMeat; if (!meat) return;
+  meat.removeEventListener('pointermove', moveTouchDrag); meat.removeEventListener('pointercancel', cancelTouchDrag);
+  if (!touchDragging) {
+    if (meat.dataset.state === 'grill') flipMeat(meat);
+    else showToast('고기를 끌어다 놓으세요');
+    clearTouchDrag();
+    return;
+  }
+  meat.classList.remove('dragging'); meat.style.pointerEvents = 'none';
+  const target = document.elementFromPoint(event.clientX, event.clientY);
+  meat.style.pointerEvents = '';
+  const overGrill = target && (target === grill || grill.contains(target));
+  const overPlate = target && (target === plate || plate.contains(target));
+  let moved = false;
+  if (overGrill && meat.dataset.state === 'tray') moved = placeOnGrill(meat);
+  else if (overPlate && meat.dataset.state === 'grill') { serveMeat(meat); moved = true; }
+  if (!moved && meat.isConnected) restoreTouchMeat(meat);
+  clearTouchDrag();
+}
+function cancelTouchDrag() {
+  if (touchMeat?.isConnected) restoreTouchMeat(touchMeat);
+  clearTouchDrag();
+}
+function restoreTouchMeat(meat) {
+  meat.classList.remove('dragging'); meat.style.position = touchOriginal.position; meat.style.left = touchOriginal.left; meat.style.top = touchOriginal.top; meat.style.transform = touchOriginal.transform;
+}
+function clearTouchDrag() { touchMeat = null; touchOriginal = null; touchDragging = false; }
 function placeOnGrill(meat) {
   const grillingCount = grill.querySelectorAll('.meat').length;
-  if (grillingCount >= 8) { showToast('불판이 가득 찼어요!'); return; }
+  if (grillingCount >= 8) { showToast('불판이 가득 찼어요!'); return false; }
   meat.dataset.state = 'grill'; meat.className = 'meat';
   const column = grillingCount % 4, row = Math.floor(grillingCount / 4);
   const meatWidth = 74, meatHeight = 48, inset = 33;
@@ -107,7 +156,8 @@ function placeOnGrill(meat) {
   const top = inset + innerHeight * row;
   const rotations = [-5, 3, -2, 4, 3, -4, 4, -3];
   meat.style.position = 'absolute'; meat.style.left = `${left}px`; meat.style.top = `${top}px`; meat.style.transform = `rotate(${rotations[grillingCount]}deg)`;
-  grill.append(meat); grill.classList.add('has-meat'); dropHint.style.opacity = '0'; instructionEl.textContent = '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
+  grill.append(meat); grill.classList.add('has-meat'); dropHint.style.opacity = '0'; instructionEl.textContent = isMobileLayout() ? '불판 고기를 완성 접시까지 끌어다 놓으세요' : '좌클릭으로 뒤집고, 우클릭으로 접시에 담으세요';
+  return true;
 }
 function serveMeat(meat) {
   const cookA = Number(meat.dataset.cookA), cookB = Number(meat.dataset.cookB); let points = 0;
